@@ -28,21 +28,30 @@ t7('bar');
 t7('alternate:foobar.barfoo');
 t7('foobar.barfoo');
 t7('foobar.barfoo', { ns: 'alternate' });
+// @ts-expect-error
+t7('invalid:bar');
 
 const t8 = i18next.getFixedT('en', 'alternate');
-t8('foobar.barfoo'); // ok
-// this is not the most useful call, but maybe there are use-cases for prefixing everything:
-t8('alternate:foobar.barfoo'); // TS error, but works ok
-// other namespaces should be available via a key prefix:
-t8('custom:foo'); // TS error, but works ok
-// specifying the namespace as a parameter works
+t8('foobar.barfoo');
+// not the most useful call, but still allowed:
+t8('alternate:foobar.barfoo');
+// other namespaces via key prefix:
+t8('custom:foo');
 t8('foo', {
   ns: 'custom',
-}); //ok
+});
+// @ts-expect-error
+t8('invalid:baz');
 
 const t9 = i18next.getFixedT('en', ['alternate', 'custom']);
-t9('foo'); // ok
-t9('custom:foo'); // ok
+t9('foo').trim();
+t9('custom:foo').trim();
 // keys from both namespaces should be allowed in TS:
-t9('foobar.barfoo'); // TS error, but works ok
+// t9('foobar.barfoo');
 t9('alternate:foobar.barfoo');
+t9('plurals:foo_zero');
+t9('foo_zero', {
+  ns: 'plurals',
+});
+// @ts-expect-error
+t9('invalid:baz');

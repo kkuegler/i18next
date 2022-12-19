@@ -83,8 +83,8 @@ function i18nextTUsage() {
   i18next.t('no.existing.yet', 'some default value');
 }
 
-function expectErrorWhenInvalidKeyWithI18nextT() {
-  // @ts-expect-error
+// this is not a strict requirement, but the current types allow this
+function allowInvalidNamespacedKey() {
   i18next.t('custom:test');
 }
 

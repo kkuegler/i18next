@@ -782,9 +782,9 @@ export type TFuncKey<
 > = N extends (keyof T)[] | Readonly<(keyof T)[]>
   ? NormalizeMulti<T, N[number]>
   : N extends keyof T
-  ? TKPrefix extends undefined
-    ? Normalize<T[N]>
-    : NormalizeWithKeyPrefix<T[N], TKPrefix>
+  ?
+      | (TKPrefix extends undefined ? Normalize<T[N]> : NormalizeWithKeyPrefix<T[N], TKPrefix>)
+      | KeyWithNSSeparator<keyof T, string>
   : string;
 
 export interface WithT<N extends Namespace = DefaultNamespace> {
