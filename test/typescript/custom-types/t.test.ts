@@ -58,8 +58,7 @@ function i18nextTUsage() {
   i18next.t('foobar.deep', { ns: 'alternate', returnObjects: true, returnDetails: true }).res;
   i18next.t('custom:bar').trim();
   i18next.t('bar', { ns: 'custom' }).trim();
-  // @ts-expect-error
-  i18next.t('bar', { ns: 'alternate' });
+  i18next.t('bar', { ns: 'alternate' }).trim();
   i18next.t('bar', {}).trim();
   i18next.t('bar').trim();
   i18next.t('baz.bing').trim();

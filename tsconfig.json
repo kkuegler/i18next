@@ -12,7 +12,8 @@
     "paths": { "i18next": ["./index.d.ts"] },
 
     "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true
+    "allowSyntheticDefaultImports": true,
+    "noErrorTruncation": true
   },
   "include": ["./index.d.ts", "./test/**/*.ts*"],
   "exclude": ["test/typescript/nonEsModuleInterop/**/*.ts", "test/typescript/custom-types"]

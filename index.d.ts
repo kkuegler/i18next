@@ -7,6 +7,8 @@ type UnionToIntersection<U> = (U extends any ? (k: U) => void : never) extends (
 type LastOf<T> = UnionToIntersection<T extends any ? () => T : never> extends () => infer R
   ? R
   : never;
+type DistributiveKeyOf<T> = T extends Record<string, any> ? keyof T : never;
+type Unpack<A> = A extends Array<infer E> ? E : A extends ReadonlyArray<infer E> ? E : A;
 
 /**
  * This interface can be augmented by users to add types to `i18next` default TypeOptions.
@@ -722,7 +724,7 @@ type FallbackOrNS<F, T = keyof Resources> = [T] extends [never] ? F : T;
 type Resources = TypeOptions['resources'];
 type DefaultNamespace = TypeOptions['defaultNS'];
 
-export type Namespace<T = FallbackOrNS<string>> = T | T[];
+export type Namespace<T = FallbackOrNS<string>> = T | readonly T[];
 
 type PluralSuffix = 'zero' | 'one' | 'two' | 'few' | 'many' | 'other';
 
@@ -752,9 +754,6 @@ type Normalize<T> = WithOrWithoutPlural<keyof T> | Normalize2<T>;
 // Normalize multiple namespaces
 type KeyWithNSSeparator<N, K, S extends string = TypeOptions['nsSeparator']> = `${N &
   string}${S}${K & string}`;
-type NormalizeMulti<T, U extends keyof T, L = LastOf<U>> = L extends U
-  ? KeyWithNSSeparator<L, Normalize<T[L]>> | NormalizeMulti<T, Exclude<U, L>>
-  : never;
 
 // Normalize single namespace with key prefix
 type NormalizeWithKeyPrefix<
@@ -779,11 +778,14 @@ export type TFuncKey<
   N extends Namespace = DefaultNamespace,
   TKPrefix = undefined,
   T = Resources,
-> = N extends (keyof T)[] | Readonly<(keyof T)[]>
-  ? NormalizeMulti<T, N[number]>
-  : N extends keyof T
+  FlatN = Unpack<N>,
+> = object extends T
+  ? string
+  : FlatN extends keyof T
   ?
-      | (TKPrefix extends undefined ? Normalize<T[N]> : NormalizeWithKeyPrefix<T[N], TKPrefix>)
+      | (TKPrefix extends undefined
+          ? Normalize<T[FlatN]>
+          : NormalizeWithKeyPrefix<T[FlatN], TKPrefix>)
       | KeyWithNSSeparator<keyof T, string>
   : string;
 
@@ -844,17 +846,17 @@ export type NormalizeReturn<
   T,
   V,
   S extends string | false = TypeOptions['keySeparator'],
-> = V extends keyof T
+> = V extends DistributiveKeyOf<T>
   ? NormalizeByTypeOptions<T[V]>
   : S extends false
   ? V
   : V extends `${infer K}${S}${infer R}`
-  ? K extends keyof T
+  ? K extends DistributiveKeyOf<T>
     ? NormalizeReturn<T[K], R>
     : never
   : StringIfPlural<keyof T>;
 
-type NormalizeMultiReturn<T, V> = V extends `${infer N}:${infer R}`
+type NormalizeNamespacedReturn<T, V> = V extends `${infer N}:${infer R}`
   ? N extends keyof T
     ? NormalizeReturn<T[N], R>
     : never
@@ -870,13 +872,15 @@ export type TFuncReturn<
   TDefaultResult,
   TKPrefix = undefined,
   T = Resources,
-> = N extends (keyof T)[]
-  ? NormalizeMultiReturn<T, TKeys>
-  : N extends keyof T
-  ? TKPrefix extends undefined
-    ? NormalizeReturn<T[N], TKeys>
-    : NormalizeReturn<T[N], KeysWithSeparator<TKPrefix, TKeys>>
-  : TDefaultResult;
+  FlatN = Unpack<N>,
+> =
+  //TODO: TKPrefix?
+  | NormalizeNamespacedReturn<Resources, TKeys>
+  | (FlatN extends keyof T
+      ? TKPrefix extends undefined
+        ? NormalizeReturn<T[FlatN], TKeys>
+        : NormalizeReturn<T[FlatN], KeysWithSeparator<TKPrefix, TKeys>>
+      : TDefaultResult);
 
 export interface TFunction<
   N extends Namespace = DefaultNamespace,
@@ -1276,6 +1280,19 @@ export interface i18n {
    *
    * Accepts optional keyPrefix that will be automatically applied to returned t function.
    */
+  //FIXME: only:
+  /*
+  getFixedT<
+    N extends Namespace | null,
+    TKPrefix extends KeyPrefix<ActualNS> = undefined,
+    ActualNS extends Namespace = N extends null ? DefaultNamespace : N,
+  >(
+    lng?: string | readonly string[] | null,
+    ns?: N,
+    keyPrefix?: TKPrefix,
+  ): TFunction<ActualNS, TKPrefix>;
+*/
+
   getFixedT<
     N extends Namespace | null,
     TKPrefix extends KeyPrefix<ActualNS> = undefined,
