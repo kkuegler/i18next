@@ -1225,6 +1225,7 @@ export interface ExistsFunction<
 }
 
 export interface i18n {
+  // TODO: should this be restricted to the defualt NS?
   // Expose parameterized t in the i18next interface hierarchy
   t: TFunction<FallbackOrNS<string>[]>;
 
