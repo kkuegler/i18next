@@ -1,12 +1,11 @@
 // Helpers
 type MergeBy<T, K> = Omit<T, keyof K> & K;
-export type StringMap = { [key: string]: any };
-type UnionToIntersection<U> = (U extends any ? (k: U) => void : never) extends (k: infer I) => void
-  ? I
-  : never;
-type LastOf<T> = UnionToIntersection<T extends any ? () => T : never> extends () => infer R
-  ? R
-  : never;
+export type StringMap = Record<string, any>;
+// like 'keyof T', but by using 'T extends' will be applied to each member of a union individually:
+// keyof ({a: 1} | {b: 2}) is never
+// DistributiveKeyOf<({a: 1} | {b: 2})> is "a" | "b"
+type DistributiveKeyOf<T> = T extends StringMap ? keyof T : never;
+type Unpack<A> = A extends ReadonlyArray<infer E> ? E : A;
 
 /**
  * This interface can be augmented by users to add types to `i18next` default TypeOptions.
@@ -752,9 +751,6 @@ type Normalize<T> = WithOrWithoutPlural<keyof T> | Normalize2<T>;
 // Normalize multiple namespaces
 type KeyWithNSSeparator<N, K, S extends string = TypeOptions['nsSeparator']> = `${N &
   string}${S}${K & string}`;
-type NormalizeMulti<T, U extends keyof T, L = LastOf<U>> = L extends U
-  ? KeyWithNSSeparator<L, Normalize<T[L]>> | NormalizeMulti<T, Exclude<U, L>>
-  : never;
 
 // Normalize single namespace with key prefix
 type NormalizeWithKeyPrefix<
@@ -779,13 +775,16 @@ export type TFuncKey<
   N extends Namespace = DefaultNamespace,
   TKPrefix = undefined,
   T = Resources,
-> = N extends (keyof T)[] | Readonly<(keyof T)[]>
-  ? NormalizeMulti<T, N[number]>
-  : N extends keyof T
-  ? TKPrefix extends undefined
-    ? Normalize<T[N]>
-    : NormalizeWithKeyPrefix<T[N], TKPrefix>
-  : string;
+  FlatN = Unpack<N>,
+> = object extends T // 'resources' not set in CustomTypeOptions
+  ? string
+  : FlatN extends keyof T
+  ?
+      | (TKPrefix extends undefined
+          ? Normalize<T[FlatN]>
+          : NormalizeWithKeyPrefix<T[FlatN], TKPrefix>)
+      | KeyWithNSSeparator<keyof T, string>
+  : never;
 
 export interface WithT<N extends Namespace = DefaultNamespace> {
   // Expose parameterized t in the i18next interface hierarchy
@@ -844,17 +843,17 @@ export type NormalizeReturn<
   T,
   V,
   S extends string | false = TypeOptions['keySeparator'],
-> = V extends keyof T
+> = V extends DistributiveKeyOf<T>
   ? NormalizeByTypeOptions<T[V]>
   : S extends false
   ? V
   : V extends `${infer K}${S}${infer R}`
-  ? K extends keyof T
+  ? K extends DistributiveKeyOf<T>
     ? NormalizeReturn<T[K], R>
     : never
   : StringIfPlural<keyof T>;
 
-type NormalizeMultiReturn<T, V> = V extends `${infer N}:${infer R}`
+type NormalizeNamespacedReturn<T, V> = V extends `${infer N}:${infer R}`
   ? N extends keyof T
     ? NormalizeReturn<T[N], R>
     : never
@@ -870,13 +869,15 @@ export type TFuncReturn<
   TDefaultResult,
   TKPrefix = undefined,
   T = Resources,
-> = N extends (keyof T)[]
-  ? NormalizeMultiReturn<T, TKeys>
-  : N extends keyof T
-  ? TKPrefix extends undefined
-    ? NormalizeReturn<T[N], TKeys>
-    : NormalizeReturn<T[N], KeysWithSeparator<TKPrefix, TKeys>>
-  : TDefaultResult;
+  FlatN = Unpack<N>,
+> =
+  //TODO: TKPrefix?
+  | NormalizeNamespacedReturn<Resources, TKeys>
+  | (FlatN extends keyof T
+      ? TKPrefix extends undefined
+        ? NormalizeReturn<T[FlatN], TKeys>
+        : NormalizeReturn<T[FlatN], KeysWithSeparator<TKPrefix, TKeys>>
+      : TDefaultResult);
 
 export interface TFunction<
   N extends Namespace = DefaultNamespace,
@@ -972,11 +973,8 @@ export interface TFunction<
     TKeys extends TFuncKey<UsedNS, TKPrefix>,
     TDefaultResult extends DefaultTFuncReturn = string,
     TInterpolationMap extends object = StringMap,
-    PassedNS extends Namespace = N extends string ? N : N extends null ? DefaultNamespace : N,
     PassedOpt extends TOptions<TInterpolationMap> = TOptions<TInterpolationMap>,
-    UsedNS extends Namespace = Pick<PassedOpt, 'ns'> extends { ns: string }
-      ? PassedNS
-      : ActualNS | DefaultNamespace,
+    UsedNS extends Namespace = PassedOpt extends { ns: any } ? never : ActualNS,
   >(
     key: TKeys | TKeys[],
     options: PassedOpt,
@@ -1221,6 +1219,7 @@ export interface ExistsFunction<
 }
 
 export interface i18n {
+  // TODO: should this be restricted to the defualt NS?
   // Expose parameterized t in the i18next interface hierarchy
   t: TFunction<FallbackOrNS<string>[]>;
 
